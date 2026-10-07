@@ -1,122 +1,221 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [video, setVideo] = useState(null);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleVideoChange = (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    setVideo(file);
+    setResult(null);
+    setError("");
+  };
+
+  const predictShot = async () => {
+    if (!video) return;
+
+    setLoading(true);
+    setResult(null);
+    setError("");
+
+    const formData = new FormData();
+    formData.append("file", video);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/predict", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      setResult(data);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Could not connect to the backend. Make sure FastAPI is running."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app">
+      <header className="navbar">
+        <div className="logo">
+          <span className="logo-mark">🏸</span>
+          <span>Badminton AI</span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <nav>
+          <a href="#home">Home</a>
+          <a href="#analyze">Analyze</a>
+          <a href="#about">About</a>
+        </nav>
+      </header>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <main>
+        <section className="hero" id="home">
+          <div className="hero-content">
+            <p className="eyebrow">AI-POWERED SPORTS ANALYTICS</p>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+            <h1>
+              Understand Every
+              <span> Badminton Shot.</span>
+            </h1>
+
+            <p className="hero-description">
+              Upload a badminton video and let our CNN-LSTM model recognize
+              the player's stroke automatically.
+            </p>
+
+            <a href="#analyze" className="primary-button">
+              Analyze Video
+            </a>
+          </div>
+
+          <div className="hero-card">
+            <div className="court">
+              <div className="net"></div>
+              <div className="player player-one"></div>
+              <div className="player player-two"></div>
+              <div className="shuttle">●</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="analyze-section" id="analyze">
+          <div className="section-heading">
+            <p className="eyebrow">SHOT RECOGNITION</p>
+            <h2>Analyze your video</h2>
+            <p>
+              Upload a badminton clip to classify the player's shot.
+            </p>
+          </div>
+
+          <div className="upload-card">
+            <div className="upload-icon">↑</div>
+
+            <h3>
+              {video ? video.name : "Upload badminton video"}
+            </h3>
+
+            <p>
+              {video
+                ? `${(video.size / (1024 * 1024)).toFixed(2)} MB`
+                : "MP4, AVI, MOV or MKV"}
+            </p>
+
+            <label className="upload-button">
+              Choose Video
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoChange}
+              />
+            </label>
+
+            {video && (
+              <button
+                className="analyze-button"
+                onClick={predictShot}
+                disabled={loading}
+              >
+                {loading ? "Analyzing..." : "Predict Shot"}
+              </button>
+            )}
+
+            {error && <p className="error-message">{error}</p>}
+
+            {result && (
+              <div className="result-card">
+                <p className="result-label">PREDICTION</p>
+
+                <h2>{result.prediction}</h2>
+
+                <p className="confidence">
+                  Confidence:{" "}
+                  <strong>
+                    {(result.confidence * 100).toFixed(1)}%
+                  </strong>
+                </p>
+
+                {result.probabilities && (
+                  <div className="probabilities">
+                    {Object.entries(result.probabilities).map(
+                      ([shot, probability]) => (
+                        <div className="probability-row" key={shot}>
+                          <span>{shot}</span>
+
+                          <span>
+                            {(probability * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="classes-section" id="about">
+          <div className="section-heading">
+            <p className="eyebrow">SUPPORTED SHOTS</p>
+            <h2>Five badminton strokes</h2>
+          </div>
+
+          <div className="shot-grid">
+            <div className="shot-card">
+              <span>01</span>
+              <h3>Clear</h3>
+              <p>High defensive or attacking shot to the back court.</p>
+            </div>
+
+            <div className="shot-card">
+              <span>02</span>
+              <h3>Drive</h3>
+              <p>Fast and relatively flat shot across the court.</p>
+            </div>
+
+            <div className="shot-card">
+              <span>03</span>
+              <h3>Drop</h3>
+              <p>Controlled shot that falls close to the opponent's net.</p>
+            </div>
+
+            <div className="shot-card">
+              <span>04</span>
+              <h3>Net Shot</h3>
+              <p>Delicate shot played close to the net.</p>
+            </div>
+
+            <div className="shot-card">
+              <span>05</span>
+              <h3>Smash</h3>
+              <p>Powerful downward attacking shot.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>Badminton AI · CNN-LSTM Shot Recognition</p>
+      </footer>
+    </div>
+  );
 }
 
-export default App
+export default App;
