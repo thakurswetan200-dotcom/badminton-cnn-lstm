@@ -80,66 +80,38 @@ The main objective of this project is to build an automated badminton stroke rec
 
 
 
+T## 🧠 System Architecture
+
 The overall system follows this pipeline:
 
-
-
-
-    User
-
-     ↓
-
+```text
+User
+  ↓
 React Frontend
-
-     ↓
-
+  ↓
 HTTP POST Request
-
-     ↓
-
+  ↓
 FastAPI Backend
-
-     ↓
-
+  ↓
 Video Upload
-
-     ↓
-
+  ↓
 predict.py
-
-     ↓
-
+  ↓
 OpenCV Video Processing
-
-     ↓
-
+  ↓
 16 Sampled Frames
-
-     ↓
-
+  ↓
 CNN Spatial Feature Extraction
-
-     ↓
-
+  ↓
 LSTM Temporal Modeling
-
-     ↓
-
+  ↓
 5-Class Classification
-
-     ↓
-
+  ↓
 Softmax Probabilities
-
-     ↓
-
+  ↓
 JSON Response
-
-     ↓
-
+  ↓
 React Frontend
-
-    ↓
-
+  ↓
 Prediction + Confidence
-
+```
