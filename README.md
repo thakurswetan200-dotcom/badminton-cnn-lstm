@@ -1,4 +1,4 @@
-\# 🏸 Badminton CNN-LSTM
+🏸 Badminton CNN-LSTM
 
 
 
@@ -10,11 +10,10 @@ The project combines a React frontend, FastAPI backend, OpenCV video processing,
 
 
 
-\---
 
 
 
-\## 📌 Overview
+    📌 Overview
 
 
 
@@ -46,11 +45,7 @@ The final prediction and confidence score are returned to the React frontend.
 
 
 
-\---
-
-
-
-\## 🎯 Objective
+🎯 Objective
 
 
 
@@ -74,11 +69,10 @@ The main objective of this project is to build an automated badminton stroke rec
 
 
 
-\---
 
 
 
-\## 🧠 System Architecture
+    🧠 System Architecture
 
 
 
@@ -90,63 +84,62 @@ The overall system follows this pipeline:
 
 
 
-```text
 
-User
+    User
 
-&#x20; ↓
+     ↓
 
 React Frontend
 
-&#x20; ↓
+     ↓
 
 HTTP POST Request
 
-&#x20; ↓
+     ↓
 
 FastAPI Backend
 
-&#x20; ↓
+     ↓
 
 Video Upload
 
-&#x20; ↓
+     ↓
 
 predict.py
 
-&#x20; ↓
+     ↓
 
 OpenCV Video Processing
 
-&#x20; ↓
+     ↓
 
 16 Sampled Frames
 
-&#x20; ↓
+     ↓
 
 CNN Spatial Feature Extraction
 
-&#x20; ↓
+     ↓
 
 LSTM Temporal Modeling
 
-&#x20; ↓
+     ↓
 
 5-Class Classification
 
-&#x20; ↓
+     ↓
 
 Softmax Probabilities
 
-&#x20; ↓
+     ↓
 
 JSON Response
 
-&#x20; ↓
+     ↓
 
 React Frontend
 
-&#x20; ↓
+    ↓
 
 Prediction + Confidence
 
