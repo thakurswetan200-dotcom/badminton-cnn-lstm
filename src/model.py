@@ -1,65 +1,57 @@
+
 import torch
 import torch.nn as nn
 from torchvision import models
 
 
-class CNNLSTM(nn.Module):
+class CNNLSTMPretrained(nn.Module):
+    def __init__(
+        self,
+        num_classes=5,
+        hidden_size=256,
+        num_layers=2
+    ):
+        super().__init__()
 
-    def __init__(self, num_classes=5):
-
-        super(CNNLSTM, self).__init__()
-
-        # CNN: ResNet18
+        # CNN: extract spatial features from each frame
         self.cnn = models.resnet18(weights=None)
-
-        # Remove the original ResNet classifier
         self.cnn.fc = nn.Identity()
 
-        # LSTM
+        # LSTM: learn temporal patterns across video frames
         self.lstm = nn.LSTM(
             input_size=512,
-            hidden_size=128,
-            batch_first=True
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=0.4
         )
 
-        # Final classification layer
-        self.fc = nn.Linear(
-            128,
-            num_classes
-        )
+        # Fully connected layer for stroke classification
+        # Name "fc" matches your checkpoint's fc.weight and fc.bias
+        self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
+        # Expected input: [batch, frames, channels, height, width]
+        batch_size, seq_len, channels, height, width = x.shape
 
-        # x shape:
-        # [batch, sequence, channels, height, width]
-
-        batch_size, sequence_length, channels, height, width = x.shape
-
-        # Combine batch and sequence
-        x = x.view(
-            batch_size * sequence_length,
+        # Process each frame through ResNet18
+        x = x.reshape(
+            batch_size * seq_len,
             channels,
             height,
             width
         )
 
-        # CNN extracts spatial features
         x = self.cnn(x)
 
-        # Restore sequence dimension
-        x = x.view(
-            batch_size,
-            sequence_length,
-            512
-        )
+        # Restore the video sequence
+        x = x.reshape(batch_size, seq_len, 512)
 
-        # LSTM learns temporal information
+        # Process the sequence using the LSTM
         x, _ = self.lstm(x)
 
-        # Take the last time step
+        # Use the final time step
         x = x[:, -1, :]
 
-        # Classification
-        x = self.fc(x)
-
-        return x
+        # Return raw class scores (logits)
+        return self.fc(x)

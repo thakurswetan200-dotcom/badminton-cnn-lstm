@@ -1,244 +1,131 @@
+
+from pathlib import Path
+
 import cv2
-import torch
 import numpy as np
-import os
+import torch
+from PIL import Image
+from torchvision import models, transforms
 
-from src.model import CNNLSTM
-
-
-# -----------------------------
-# 1. Device
-# -----------------------------
-
-device = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
-)
-
-print("Using device:", device)
+from src.model import CNNLSTMPretrained
 
 
-# -----------------------------
-# 2. Class names
-# -----------------------------
+ROOT_DIR = Path(__file__).resolve().parent.parent
+MODEL_PATH = ROOT_DIR / "models" / "model.pth"
 
-class_names = [
-    "Clear",
-    "Drive",
-    "Drop_Shot",
-    "Net_Shot",
-    "Smash"
-]
+CLASS_NAMES = ["Clear", "Drive", "Drop", "Net_Shot", "Smash"]
+NUM_FRAMES = 16
+IMAGE_SIZE = 224
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# -----------------------------
-# 3. Load model
-# -----------------------------
-
-model = CNNLSTM(num_classes=5)
-
-model_path = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "models",
-    "model.pth"
-)
-
-model.load_state_dict(
-    torch.load(
-        model_path,
-        map_location=device
-    )
-)
-
-model = model.to(device)
-
-model.eval()
-
-print("Model loaded successfully!")
+TRANSFORM = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    ),
+])
 
 
-# -----------------------------
-# 4. Prediction function
-# -----------------------------
-
-def predict_video(video_path):
-
-    # -----------------------------
-    # Open video
-    # -----------------------------
-
-    cap = cv2.VideoCapture(video_path)
+def extract_frames(video_path):
+    """Extract 16 evenly spaced frames from a video."""
+    cap = cv2.VideoCapture(str(video_path))
 
     if not cap.isOpened():
-        raise ValueError("Could not open video")
+        raise ValueError(f"Could not open video: {video_path}")
 
-    # -----------------------------
-    # Get total frames
-    # -----------------------------
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    total_frames = int(
-        cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    )
-
-    print("Total video frames:", total_frames)
-
-    # -----------------------------
-    # Select 16 frames
-    # -----------------------------
-
-    sequence_length = 16
-
-    if total_frames < sequence_length:
-
+    if total_frames <= 0:
         cap.release()
+        raise ValueError("The video contains no readable frames.")
 
-        raise ValueError(
-            "Video has fewer than 16 frames"
-        )
-
-    frame_numbers = np.linspace(
-        0,
-        total_frames - 1,
-        sequence_length
-    ).astype(int)
+    indices = np.linspace(
+        0, total_frames - 1, NUM_FRAMES, dtype=int
+    )
 
     frames = []
 
-    # -----------------------------
-    # Read selected frames
-    # -----------------------------
+    for index in indices:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(index))
+        success, frame = cap.read()
 
-    for frame_number in frame_numbers:
-
-        cap.set(
-            cv2.CAP_PROP_POS_FRAMES,
-            frame_number
-        )
-
-        ret, frame = cap.read()
-
-        if not ret:
-
+        if not success:
             cap.release()
+            raise ValueError(f"Could not read frame {index}.")
 
-            raise ValueError(
-                f"Error reading frame {frame_number}"
-            )
-
-        # BGR → RGB
-        frame = cv2.cvtColor(
-            frame,
-            cv2.COLOR_BGR2RGB
-        )
-
-        # Resize to 224 × 224
-        frame = cv2.resize(
-            frame,
-            (224, 224)
-        )
-
-        # Same preprocessing used during training
-        frame = frame / 255.0
-
-        frames.append(frame)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(frame)
+        frames.append(TRANSFORM(image))
 
     cap.release()
 
-    # -----------------------------
-    # Convert frames to NumPy
-    # -----------------------------
+    # Shape: [1, 16, 3, 224, 224]
+    return torch.stack(frames).unsqueeze(0)
 
-    frames = np.array(frames)
 
-    # -----------------------------
-    # NumPy → PyTorch tensor
-    # -----------------------------
+def load_model():
+    """Load the trained checkpoint."""
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(
+            f"Model checkpoint not found: {MODEL_PATH}"
+        )
 
-    frames = torch.tensor(
-        frames,
-        dtype=torch.float32
+    model = CNNLSTMPretrained()
+
+    checkpoint = torch.load(
+        MODEL_PATH,
+        map_location=DEVICE,
+        weights_only=True,
     )
 
-    # Current:
-    # [16, 224, 224, 3]
+    # Support either a raw state_dict or a checkpoint dictionary.
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        state_dict = checkpoint["model_state_dict"]
+    else:
+        state_dict = checkpoint
 
-    # Change:
-    # [16, 224, 224, 3]
-    # →
-    # [16, 3, 224, 224]
+    model.load_state_dict(state_dict)
+    model.to(DEVICE)
+    model.eval()
 
-    frames = frames.permute(
-        0,
-        3,
-        1,
-        2
-    )
+    return model
 
-    # -----------------------------
-    # Add batch dimension
-    # -----------------------------
 
-    frames = frames.unsqueeze(0)
+def predict_video(video_path):
+    """Return the predicted badminton stroke and class probabilities."""
+    video_path = Path(video_path)
 
-    # Final:
-    # [1, 16, 3, 224, 224]
+    if not video_path.exists():
+        raise FileNotFoundError(f"Video not found: {video_path}")
 
-    frames = frames.to(device)
-
-    print("Input shape:", frames.shape)
-
-    # -----------------------------
-    # Model prediction
-    # -----------------------------
+    model = load_model()
+    video_tensor = extract_frames(video_path).to(DEVICE)
 
     with torch.no_grad():
+        logits = model(video_tensor)
+        probabilities = torch.softmax(logits, dim=1)[0]
 
-        outputs = model(frames)
-
-        probabilities = torch.softmax(
-            outputs,
-            dim=1
-        )
-
-        predicted_class = torch.argmax(
-            probabilities,
-            dim=1
-        ).item()
-
-    # -----------------------------
-    # Confidence
-    # -----------------------------
-
-    confidence = (
-        probabilities[
-            0,
-            predicted_class
-        ].item() * 100
-    )
-
-    # -----------------------------
-    # All probabilities
-    # -----------------------------
-
-    probability_dict = {
-        class_names[i]: round(
-            probabilities[
-                0,
-                i
-            ].item() * 100,
-            2
-        )
-        for i in range(len(class_names))
-    }
-
-    # -----------------------------
-    # Return result
-    # -----------------------------
+    predicted_index = int(torch.argmax(probabilities).item())
 
     return {
-        "prediction": class_names[predicted_class],
+        "predicted_class": CLASS_NAMES[predicted_index],
         "confidence": round(
-            confidence,
-            2
+            float(probabilities[predicted_index].item()), 4
         ),
-        "probabilities": probability_dict
+        "probabilities": {
+            name: round(float(probabilities[i].item()), 4)
+            for i, name in enumerate(CLASS_NAMES)
+        },
     }
+
+
+if __name__ == "__main__":
+    test_video = ROOT_DIR / "data" / "raw" / "test.avi"
+
+    result = predict_video(test_video)
+    print("Prediction:", result["predicted_class"])
+    print("Confidence:", result["confidence"])
+    print("Probabilities:", result["probabilities"])
