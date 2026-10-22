@@ -72,7 +72,7 @@ The main objective of this project is to build an automated badminton stroke rec
 
 
 
-    🧠 System Architecture
+🧠 System Architecture
 
 
 
@@ -80,7 +80,7 @@ The main objective of this project is to build an automated badminton stroke rec
 
 
 
-T## 🧠 System Architecture
+🧠 System Architecture
 
 The overall system follows this pipeline:
 
